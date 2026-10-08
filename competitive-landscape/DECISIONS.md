@@ -96,6 +96,32 @@ Significant choices made while building the MVP, with the reason for each.
 - **Citations in the app** are buttons, not `#anchor` links, because the app uses
   hash routing. The HTML report uses real anchors.
 
+## Claude Artifact build
+
+- **One codebase, two targets.** `vite build --mode artifact` sets
+  `IS_ARTIFACT`. `scripts/assemble-artifact.mjs` then inlines the CSS and the
+  single JS chunk into page content (the publisher adds the document
+  skeleton), escaping `</script` and `<!--` inside the bundle. The layout
+  worker is published next to the page, because the inlined bundle resolves
+  it against the page URL.
+- **Storage backends.** One interface with three implementations. *Account*:
+  the `db` capability, each viewer's projects as `p_<id>` and snapshots as
+  `s_<id>` in their private `data/users/<uid>` collection, with writes to a
+  document serialised and refused writes explained. *Browser*: Dexie.
+  *Memory*: the last resort. The standalone app always uses the browser
+  backend.
+- **Exports** go through the `downloads` capability. The viewer confirms each
+  save; a declined save is reported, never retried.
+- **Viewer constraints.** In-memory routing, because only plain `#anchors`
+  reach an artifact. In-page two-step confirmations replace `confirm()`, which
+  the viewer blocks; the standalone app uses them too. If the worker fails to
+  start, layout falls back to the main thread.
+- **Theme.** All colours are tokens with light and dark values. On-screen
+  charts map palette hexes to CSS variables (`SceneSvg themed`). Exports keep
+  literal colours on white.
+- **First view.** With no saved projects, the Projects page shows a live,
+  clearly labelled preview of the fictional example.
+
 ## Not built (by design)
 
 No accounts, server, LLM, web research, scraping, payments, or deployment. No

@@ -6,7 +6,7 @@ import { formatQuantity, parseQuantity, quantityToInput } from '../domain/format
 import { newId } from '../domain/ids';
 import { EVIDENCE_STATUSES, type EvidenceStatus, type Product, type Project, type Segment, type Source } from '../domain/types';
 import { productIssues, type Issue } from '../domain/validation';
-import { Field } from './common';
+import { ConfirmButton, Field } from './common';
 import { draftToPrice, percentText, PriceEditor, priceToDraft, SegmentPicker, SourcesEditor, SplitEditor, type SplitState } from './editors';
 
 export interface ProductSave {
@@ -224,9 +224,9 @@ export function ProductForm({ project, product, defaultIdv, onSave, onCancel, on
           Cancel
         </button>
         {onDelete ? (
-          <button type="button" className="btn danger" style={{ marginLeft: 'auto' }} onClick={onDelete}>
-            Delete product
-          </button>
+          <span style={{ marginLeft: 'auto' }}>
+            <ConfirmButton label="Delete product" confirmLabel="Delete" prompt="Delete this product?" onConfirm={onDelete} className="btn danger" />
+          </span>
         ) : null}
       </div>
     </form>

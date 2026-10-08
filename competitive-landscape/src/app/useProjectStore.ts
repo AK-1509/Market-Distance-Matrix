@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Project } from '../domain/types';
-import { getProject, saveDraft } from '../storage/repository';
+import { errorMessage, getProject, saveDraft } from '../storage/repository';
 
 export type SaveState =
   | { kind: 'saved'; savedAt?: string }
@@ -70,7 +70,7 @@ export function useProjectStore(projectId: string) {
       (err: unknown) => {
         failed = true;
         dirty.current = true;
-        setSave({ kind: 'error', error: err instanceof Error ? err.message : String(err) });
+        setSave({ kind: 'error', error: errorMessage(err) });
       },
     );
     inflight.current = run;

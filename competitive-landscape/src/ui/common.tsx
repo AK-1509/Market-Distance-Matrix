@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { navigate } from '../app/router';
 import type { SaveState } from '../app/useProjectStore';
 import type { Inline } from '../domain/narrative';
 
@@ -141,7 +142,70 @@ export function useElementWidth<T extends HTMLElement>(fallback = 640): [React.R
 export function IdvStar({ size = 13 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" style={{ flex: 'none' }}>
-      <path d="M10 1.5l2.47 5.4 5.9.6-4.43 3.95 1.27 5.8L10 14.3l-5.2 2.95 1.27-5.8L1.63 7.5l5.9-.6z" fill="#0b0b0b" />
+      <path d="M10 1.5l2.47 5.4 5.9.6-4.43 3.95 1.27 5.8L10 14.3l-5.2 2.95 1.27-5.8L1.63 7.5l5.9-.6z" style={{ fill: 'var(--chart-ink)' }} />
     </svg>
+  );
+}
+
+/** In-app link: works with hash routing (standalone) and memory routing (artifact). */
+export function Link({ to, className, children }: { to: string; className?: string; children: ReactNode }) {
+  return (
+    <a
+      href={to}
+      className={className}
+      onClick={(e) => {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        navigate(to);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+/**
+ * Two-step destructive action inside the page. (`window.confirm` is not
+ * available in the artifact viewer, and an inline step is clearer anyway.)
+ */
+export function ConfirmButton({
+  label,
+  confirmLabel,
+  prompt,
+  onConfirm,
+  className = 'btn small danger',
+}: {
+  label: string;
+  confirmLabel: string;
+  prompt: string;
+  onConfirm: () => void;
+  className?: string;
+}) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button type="button" className={className} onClick={() => setAsking(true)}>
+        {label}
+      </button>
+    );
+  }
+  return (
+    <span className="confirm-inline" role="group" aria-label={prompt}>
+      <span className="confirm-prompt">{prompt}</span>
+      <button
+        type="button"
+        className="btn small danger"
+        autoFocus
+        onClick={() => {
+          setAsking(false);
+          onConfirm();
+        }}
+      >
+        {confirmLabel}
+      </button>
+      <button type="button" className="btn small" onClick={() => setAsking(false)}>
+        Keep it
+      </button>
+    </span>
   );
 }

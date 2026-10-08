@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "build:artifact": "tsc -b && vite build --mode artifact && node scripts/assemble-artifact.mjs"
   },
   "dependencies": {
     "dexie": "4.2.1",

@@ -3,7 +3,10 @@ import { navigate } from '../app/router';
 import { createProject } from '../domain/factory';
 import { formatDateTime } from '../domain/format';
 import { ImportError } from '../domain/importError';
-import { addProject, createExampleProject, deleteProject, importProjectText, listProjects, type ProjectSummary } from '../storage/repository';
+import { addProject, createExampleProject, deleteProject, errorMessage, importProjectText, listProjects, type ProjectSummary } from '../storage/repository';
+import { storageNote, useStorageKind } from '../app/storageInfo';
+import { ConfirmButton, Link } from './common';
+import { ExamplePreview } from './ExamplePreview';
 import { ProjectForm, type ProjectFormValues } from './ProjectForm';
 
 export function ProjectsPage() {
@@ -11,6 +14,7 @@ export function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; title: string; details?: string[]; openId?: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const kind = useStorageKind();
 
   const refresh = useCallback(() => {
     listProjects().then(setProjects, (e: unknown) => {
@@ -58,8 +62,11 @@ export function ProjectsPage() {
   };
 
   const remove = async (p: ProjectSummary) => {
-    if (!window.confirm(`Delete “${p.name || 'Untitled project'}” from this browser? Export it as JSON first if you want a backup.`)) return;
-    await deleteProject(p.id);
+    try {
+      await deleteProject(p.id);
+    } catch (e) {
+      setMessage({ kind: 'error', title: `Could not delete the project: ${errorMessage(e)}` });
+    }
     refresh();
   };
 
@@ -97,9 +104,9 @@ export function ProjectsPage() {
         <div className={`notice ${message.kind === 'error' ? 'error' : ''}`} role={message.kind === 'error' ? 'alert' : 'status'} data-testid="projects-message">
           <span className="title">{message.title}</span>{' '}
           {message.openId ? (
-            <a href={`#/project/${message.openId}`} className="btn small">
+            <Link to={`#/project/${message.openId}`} className="btn small">
               Open it
-            </a>
+            </Link>
           ) : null}
           {message.details?.length ? (
             <ul>
@@ -115,36 +122,36 @@ export function ProjectsPage() {
       {projects === null ? (
         <p>Loading…</p>
       ) : projects.length === 0 ? (
-        <div className="empty" style={{ marginTop: 12 }}>
-          <p style={{ margin: '0 0 10px' }}>No projects yet. Create one, import a JSON backup, or open the fictional example.</p>
-        </div>
+        <>
+          <div className="empty" style={{ marginTop: 12 }}>
+            <p style={{ margin: 0 }}>No projects yet. Create one, import a JSON backup, or open the fictional example below.</p>
+          </div>
+          <ExamplePreview onOpen={() => void openExample()} />
+        </>
       ) : (
         <ul className="project-list">
           {projects.map((p) => (
             <li className="project-card" key={p.id} data-testid="project-card">
               <h2>
-                <a href={`#/project/${p.id}`}>{p.name || 'Untitled project'}</a>
+                <Link to={`#/project/${p.id}`}>{p.name || 'Untitled project'}</Link>
               </h2>
               {p.marketDescription ? <p>{p.marketDescription}</p> : null}
               <span className="meta">
                 {p.productCount} product{p.productCount === 1 ? '' : 's'} · last modified {formatDateTime(p.updatedAt)}
               </span>
               <div className="row">
-                <a className="btn small" href={`#/project/${p.id}`}>
+                <Link className="btn small" to={`#/project/${p.id}`}>
                   Open
-                </a>
-                <button type="button" className="btn small danger" onClick={() => void remove(p)}>
-                  Delete
-                </button>
+                </Link>
+                <ConfirmButton label="Delete" confirmLabel="Delete project" prompt="Delete for good?" onConfirm={() => void remove(p)} />
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      <p className="storage-note">
-        Projects are stored in this browser’s IndexedDB for this site only — another browser, profile or address will not see them, and clearing site data removes
-        them. Use <strong>Export → Project JSON</strong> for a portable backup you control. Nothing is sent to a server.
+      <p className="storage-note" data-testid="storage-note">
+        {storageNote(kind)} Use <strong>Export → Project JSON</strong> inside a project to make one.
       </p>
 
       {creating ? <ProjectForm mode="create" onSubmit={(v) => void create(v)} onCancel={() => setCreating(false)} /> : null}

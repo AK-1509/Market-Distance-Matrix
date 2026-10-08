@@ -1,4 +1,4 @@
-// SVG / PNG serialisation and file download. Exports are rendered from the
+// SVG / PNG serialisation. Exports are rendered from the
 // same scene objects as the on-screen charts.
 
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -40,20 +40,4 @@ export async function svgToPng(svg: string, width: number, height: number, backg
   } finally {
     URL.revokeObjectURL(url);
   }
-}
-
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
-}
-
-export function downloadText(text: string, filename: string, type: string): void {
-  downloadBlob(new Blob([text], { type }), filename);
 }

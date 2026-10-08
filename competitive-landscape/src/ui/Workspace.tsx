@@ -10,7 +10,7 @@ import type { Analysis } from '../domain/analysis';
 import type { Project } from '../domain/types';
 import type { Issue } from '../domain/validation';
 import { DistanceChart, RadialChart } from './charts';
-import { SaveIndicator } from './common';
+import { Link, SaveIndicator } from './common';
 import { ExportMenu } from './ExportMenu';
 import { ProductDetails, ProductSwatch, SegmentDetails } from './panels';
 import { ProductForm, type ProductSave } from './ProductForm';
@@ -68,9 +68,9 @@ export function Workspace({ projectId, fresh }: { projectId: string; fresh: bool
     return (
       <div className="page">
         <p className="notice error">This project could not be found in this browser’s storage.</p>
-        <a className="btn" href="#/">
+        <Link className="btn" to="#/">
           Back to projects
-        </a>
+        </Link>
       </div>
     );
   }
@@ -112,8 +112,6 @@ export function Workspace({ projectId, fresh }: { projectId: string; fresh: bool
   };
 
   const deleteProduct = (id: string) => {
-    const p = project.products.find((x) => x.id === id);
-    if (!window.confirm(`Delete ${p?.name || 'this product'}? This cannot be undone (export JSON first if you need a backup).`)) return;
     update(
       (d) => {
         d.products = d.products.filter((x) => x.id !== id);

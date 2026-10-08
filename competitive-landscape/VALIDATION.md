@@ -107,6 +107,27 @@ Fixes made during inspection:
 - The 1920×1080 distance chart is vertically centred with taller rows.
 - The report uses a compact distance chart and scrollable tables.
 
+## Claude Artifact build
+
+After the artifact changes: typecheck passes, **82** unit tests pass (adds an
+account-backend suite against a fake `db`, and the worker-fallback test), and
+both Playwright journeys pass on the standalone build.
+
+The artifact page was smoke-tested in Chromium inside a replica of the publish
+skeleton:
+
+- **Fake `window.claude` with `db`/`user`/`downloads`.** Opening the example
+  and editing it through the chart stored the project and its snapshot under
+  `data/users/<uid>/`. The PNG export (254 KB) and JSON export were handed to
+  `downloads.save`.
+- **No capabilities.** The page fell back to browser storage, and the Export
+  menu explained that saving files is unavailable.
+- Both runs: no console errors in light or dark, and no horizontal overflow
+  at 390 px.
+
+The live per-viewer store could not be read back from this session; it is
+private to each viewer and empty until they use the page.
+
 ## Not verified / limitations
 
 - Only Chromium was automated. Firefox and Safari are untested; the app uses

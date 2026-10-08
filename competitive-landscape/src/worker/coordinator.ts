@@ -14,6 +14,7 @@ export type LayoutOutcome =
 
 interface Pending {
   jobId: number;
+  input: LayoutInput;
   resolve: (outcome: LayoutOutcome) => void;
 }
 
@@ -23,8 +24,14 @@ export class LayoutCoordinator {
   private pending: Pending | null = null;
   /** Number of stale responses dropped (exposed for tests and diagnostics). */
   staleDropped = 0;
+  /** True once the worker failed before ever answering and layout moved to the main thread. */
+  usingFallback = false;
+  private workerAnswered = false;
 
-  constructor(private readonly createWorker: () => WorkerLike) {}
+  constructor(
+    private createWorker: () => WorkerLike,
+    private readonly fallback: () => WorkerLike = createInlineWorker,
+  ) {}
 
   request(input: LayoutInput): Promise<LayoutOutcome> {
     const jobId = ++this.latestJobId;
@@ -36,7 +43,7 @@ export class LayoutCoordinator {
     }
     const worker = this.ensureWorker();
     return new Promise<LayoutOutcome>((resolve) => {
-      this.pending = { jobId, resolve };
+      this.pending = { jobId, input, resolve };
       const message: LayoutJobRequest = { jobId, input };
       worker.postMessage(message);
     });
@@ -54,9 +61,17 @@ export class LayoutCoordinator {
     worker.onmessage = (event) => this.handle(event.data);
     worker.onerror = (event) => {
       const p = this.pending;
+      this.disposeWorker();
+      if (!this.workerAnswered && !this.usingFallback) {
+        // The worker never ran (e.g. its script could not load in this host):
+        // compute on the main thread from now on and re-send the pending job.
+        this.usingFallback = true;
+        this.createWorker = this.fallback;
+        if (p) this.ensureWorker().postMessage({ jobId: p.jobId, input: p.input });
+        return;
+      }
       if (!p) return;
       this.pending = null;
-      this.disposeWorker();
       const message = event && typeof event === 'object' && 'message' in event ? String((event as { message: unknown }).message) : 'Layout worker failed';
       p.resolve({ status: 'failed', error: message });
     };
@@ -65,6 +80,7 @@ export class LayoutCoordinator {
   }
 
   private handle(response: LayoutJobResponse): void {
+    this.workerAnswered = true;
     const p = this.pending;
     if (!p || response.jobId !== p.jobId || response.jobId !== this.latestJobId) {
       this.staleDropped += 1;

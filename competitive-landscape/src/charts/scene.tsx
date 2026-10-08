@@ -3,8 +3,8 @@
 // every export (via renderToStaticMarkup), so exported numbers and positions
 // are exactly the ones on screen. React escapes all text content.
 
-import type { KeyboardEvent } from 'react';
-import { FONT_STACK } from './palette';
+import type { CSSProperties, KeyboardEvent } from 'react';
+import { FONT_STACK, SCREEN_THEME } from './palette';
 
 export interface Hit {
   kind: 'product' | 'stack' | 'segment' | 'bar';
@@ -48,33 +48,48 @@ export interface SceneHandlers {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-function renderPrim(p: Prim, key: number, h: SceneHandlers): React.ReactNode {
+type Paint = (fill?: string, stroke?: string, extra?: CSSProperties) => { fill?: string; stroke?: string; style?: CSSProperties };
+
+/** Literal colours: exports, which must not depend on page CSS. */
+const literalPaint: Paint = (fill, stroke, extra) => ({ fill, stroke, style: extra });
+
+/** On screen, palette colours become CSS variables so charts follow the light/dark theme. */
+const themedPaint: Paint = (fill, stroke, extra) => {
+  const style: CSSProperties = { ...extra };
+  const f = fill ? SCREEN_THEME[fill] : undefined;
+  const s = stroke ? SCREEN_THEME[stroke] : undefined;
+  if (f) style.fill = f;
+  if (s) style.stroke = s;
+  return { fill: f ? undefined : fill, stroke: s ? undefined : stroke, style: Object.keys(style).length ? style : undefined };
+};
+
+function renderPrim(p: Prim, key: number, h: SceneHandlers, paint: Paint): React.ReactNode {
   switch (p.t) {
     case 'rect':
       return (
         <rect key={key} x={r2(p.x)} y={r2(p.y)} width={r2(Math.max(0, p.w))} height={r2(Math.max(0, p.h))} rx={p.rx}
-          fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} opacity={p.opacity} />
+          {...paint(p.fill, p.stroke)} strokeWidth={p.sw} opacity={p.opacity} />
       );
     case 'circle':
-      return <circle key={key} cx={r2(p.cx)} cy={r2(p.cy)} r={r2(p.r)} fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} opacity={p.opacity} />;
+      return <circle key={key} cx={r2(p.cx)} cy={r2(p.cy)} r={r2(p.r)} {...paint(p.fill, p.stroke)} strokeWidth={p.sw} opacity={p.opacity} />;
     case 'line':
       return (
-        <line key={key} x1={r2(p.x1)} y1={r2(p.y1)} x2={r2(p.x2)} y2={r2(p.y2)} stroke={p.stroke} strokeWidth={p.sw}
+        <line key={key} x1={r2(p.x1)} y1={r2(p.y1)} x2={r2(p.x2)} y2={r2(p.y2)} {...paint(undefined, p.stroke)} strokeWidth={p.sw}
           opacity={p.opacity} strokeLinecap="round" />
       );
     case 'path':
-      return <path key={key} d={p.d} fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} opacity={p.opacity} strokeLinejoin="round" />;
+      return <path key={key} d={p.d} {...paint(p.fill, p.stroke)} strokeWidth={p.sw} opacity={p.opacity} strokeLinejoin="round" />;
     case 'text':
       return (
-        <text key={key} x={r2(p.x)} y={r2(p.y)} fontSize={p.size} fill={p.fill} textAnchor={p.anchor ?? 'start'}
+        <text key={key} x={r2(p.x)} y={r2(p.y)} fontSize={p.size} textAnchor={p.anchor ?? 'start'}
           fontWeight={p.weight} fontStyle={p.italic ? 'italic' : undefined}
           dominantBaseline={p.baseline === 'middle' ? 'central' : p.baseline === 'hanging' ? 'hanging' : undefined}
-          style={p.tabular ? { fontVariantNumeric: 'tabular-nums' } : undefined}>
+          {...paint(p.fill, undefined, p.tabular ? { fontVariantNumeric: 'tabular-nums' } : undefined)}>
           {p.text}
         </text>
       );
     case 'g': {
-      const children = p.children.map((c, i) => renderPrim(c, i, h));
+      const children = p.children.map((c, i) => renderPrim(c, i, h, paint));
       if (!p.hit || !h.onActivate) {
         return (
           <g key={key} data-testid={p.testId}>
@@ -112,8 +127,22 @@ function renderPrim(p: Prim, key: number, h: SceneHandlers): React.ReactNode {
   }
 }
 
-export function SceneSvg({ scene, handlers = {}, className, testId }: { scene: Scene; handlers?: SceneHandlers; className?: string; testId?: string }) {
+export function SceneSvg({
+  scene,
+  handlers = {},
+  className,
+  testId,
+  themed = false,
+}: {
+  scene: Scene;
+  handlers?: SceneHandlers;
+  className?: string;
+  testId?: string;
+  /** Screen rendering: palette colours follow the page theme via CSS variables. */
+  themed?: boolean;
+}) {
   const interactive = Boolean(handlers.onActivate);
+  const paint = themed ? themedPaint : literalPaint;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -129,7 +158,7 @@ export function SceneSvg({ scene, handlers = {}, className, testId }: { scene: S
       <title>{scene.title}</title>
       <desc>{scene.desc}</desc>
       {scene.background ? <rect x={0} y={0} width={scene.width} height={scene.height} fill={scene.background} /> : null}
-      {scene.prims.map((p, i) => renderPrim(p, i, handlers))}
+      {scene.prims.map((p, i) => renderPrim(p, i, handlers, paint))}
     </svg>
   );
 }

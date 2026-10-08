@@ -1,6 +1,6 @@
 import type { Analysis } from '../domain/analysis';
 import { effectiveAllocations } from '../domain/allocation';
-import type { ProductIdentity } from '../charts/palette';
+import { swatchColor, type ProductIdentity } from '../charts/palette';
 import { formatDistance, formatPercent, formatQuantity, formatSplitPercent } from '../domain/format';
 import { describePrice } from '../domain/price';
 import type { Product, Project } from '../domain/types';
@@ -9,7 +9,7 @@ import { IdvStar, SafeLink } from './common';
 
 export function ProductSwatch({ identity }: { identity?: ProductIdentity }) {
   if (identity?.isIdv) return <IdvStar />;
-  return <span className="swatch" style={{ background: identity?.color ?? '#c3c2b7' }} aria-hidden="true" />;
+  return <span className="swatch" style={{ background: swatchColor(identity?.color) }} aria-hidden="true" />;
 }
 
 export function ProductDetails({

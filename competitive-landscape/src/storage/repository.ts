@@ -1,5 +1,7 @@
+import { IS_ARTIFACT, useCapability } from '../app/env';
 import { createDemoProject } from '../domain/fixtures';
 import type { LayoutResult, Project } from '../domain/types';
+import { AccountBackend, DexieBackend, MemoryBackend, type DbLike, type StorageBackend, type StorageKind } from './backends';
 import { getDb, type SnapshotRecord } from './db';
 
 export interface ProjectSummary {
@@ -10,45 +12,87 @@ export interface ProjectSummary {
   productCount: number;
 }
 
+let override: StorageBackend | null = null;
+let resolving: Promise<StorageBackend> | null = null;
+
+export function setBackendForTests(backend: StorageBackend | null): void {
+  override = backend;
+  resolving = null;
+}
+
+async function resolveBackend(): Promise<StorageBackend> {
+  if (IS_ARTIFACT) {
+    // Inside the claude.ai viewer: the viewer's private db subtree when signed in.
+    const [db, user] = await Promise.all([
+      useCapability<DbLike>('db'),
+      useCapability<{ id(): Promise<string | null> }>('user'),
+    ]);
+    const uid = user ? await user.id() : null;
+    if (db && uid) {
+      const account = new AccountBackend(db, uid);
+      try {
+        await account.listProjects();
+        return account;
+      } catch {
+        // Fall through to browser storage.
+      }
+    }
+  }
+  try {
+    await getDb().open();
+    return new DexieBackend();
+  } catch {
+    return new MemoryBackend();
+  }
+}
+
+export function getBackend(): Promise<StorageBackend> {
+  if (override) return Promise.resolve(override);
+  if (!resolving) resolving = resolveBackend();
+  return resolving;
+}
+
+export async function storageKind(): Promise<StorageKind> {
+  return (await getBackend()).kind;
+}
+
 export async function listProjects(): Promise<ProjectSummary[]> {
-  const all = await getDb().projects.orderBy('updatedAt').reverse().toArray();
-  return all.map((p) => ({
-    id: p.id,
-    name: p.name,
-    marketDescription: p.marketDescription,
-    updatedAt: p.updatedAt,
-    productCount: p.products.length,
-  }));
+  const all = await (await getBackend()).listProjects();
+  return all
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      marketDescription: p.marketDescription,
+      updatedAt: p.updatedAt,
+      productCount: p.products.length,
+    }));
 }
 
 export async function getProject(id: string): Promise<Project | undefined> {
-  return getDb().projects.get(id);
+  return (await getBackend()).getProject(id);
 }
 
-/** Insert a brand-new project. `add` fails rather than overwrite an existing ID. */
+/** Insert a brand-new project. Fails rather than overwrite an existing ID. */
 export async function addProject(project: Project): Promise<void> {
-  await getDb().projects.add(project);
+  await (await getBackend()).addProject(project);
 }
 
 /** Save the current draft (debounced by the caller). Resolves only when committed. */
 export async function saveDraft(project: Project): Promise<void> {
-  await getDb().projects.put(project);
+  await (await getBackend()).putProject(project);
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const db = getDb();
-  await db.transaction('rw', db.projects, db.snapshots, async () => {
-    await db.projects.delete(id);
-    await db.snapshots.delete(id);
-  });
+  await (await getBackend()).deleteProject(id);
 }
 
 export async function getSnapshot(projectId: string): Promise<SnapshotRecord | undefined> {
-  return getDb().snapshots.get(projectId);
+  return (await getBackend()).getSnapshot(projectId);
 }
 
 export async function saveSnapshot(project: Project, inputHash: string, layout: LayoutResult): Promise<void> {
-  await getDb().snapshots.put({
+  await (await getBackend()).putSnapshot({
     projectId: project.id,
     revision: project.revision,
     inputHash,
@@ -81,7 +125,7 @@ export async function importProjectText(text: string): Promise<ImportOutcome> {
   if (parsed.layoutCache) {
     // Re-use the exported layout only as a warm start; it is applied as the
     // current map only if its input hash matches the re-computed analysis.
-    await getDb().snapshots.put({
+    await (await getBackend()).putSnapshot({
       projectId: project.id,
       revision: project.revision,
       inputHash: parsed.layoutCache.inputHash,
@@ -91,4 +135,11 @@ export async function importProjectText(text: string): Promise<ImportOutcome> {
     });
   }
   return { project, warnings: parsed.warnings };
+}
+
+/** Human-readable message for Errors and capability error objects ({code, message}). */
+export function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message);
+  return String(e);
 }

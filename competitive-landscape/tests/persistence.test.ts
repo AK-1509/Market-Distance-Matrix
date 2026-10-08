@@ -202,6 +202,20 @@ describe('layout coordinator', () => {
     if (out.status === 'done') expect(out.result.inputHash).toBe('rev-2');
   });
 
+  it('falls back to main-thread layout when the worker cannot start', async () => {
+    const broken = new FakeWorker();
+    const c = new LayoutCoordinator(() => broken);
+    const p = c.request(input);
+    broken.onerror?.({ message: 'Failed to load worker script' });
+    const out = await p;
+    expect(c.usingFallback).toBe(true);
+    expect(out.status).toBe('done');
+    if (out.status === 'done') expect(out.result.positions).toEqual(result.positions);
+    // Later jobs keep using the fallback.
+    const again = await c.request(input);
+    expect(again.status).toBe('done');
+  });
+
   it('reports worker errors without hanging', async () => {
     const w = new FakeWorker();
     const c = new LayoutCoordinator(() => w);

@@ -200,9 +200,9 @@ test('create, edit through the chart, persist, recover from invalid input, keybo
   expect(await page.locator('img[src="x"]').count()).toBe(0);
   expect(await page.locator('a[href^="javascript"]').count()).toBe(0);
   // Remove the hostile product again so the project is clean.
-  page.once('dialog', (d) => void d.accept());
   await panel(page).getByRole('button', { name: 'Edit', exact: true }).click();
   await form(page).getByRole('button', { name: 'Delete product' }).click();
+  await form(page).getByRole('group', { name: 'Delete this product?' }).getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page.getByTestId('products-table')).not.toContainText('onerror');
   await expect(page.getByTestId('analysis-errors')).toHaveCount(0);
   await waitSaved(page);

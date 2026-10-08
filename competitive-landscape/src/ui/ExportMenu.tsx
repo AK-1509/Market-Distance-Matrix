@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ExportKind } from '../app/exports';
+import { storageNote, useStorageKind } from '../app/storageInfo';
+import { canSaveFiles } from '../export/save';
 import type { ResolvedView } from '../app/useAnalysis';
 import type { LayoutResult, Project } from '../domain/types';
 
@@ -16,8 +18,18 @@ export function ExportMenu({ view, project, layoutCache }: { view: ResolvedView 
   const [clean, setClean] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [canSave, setCanSave] = useState<boolean | null>(null);
+  const kind = useStorageKind();
   const menuId = useId();
   const wrap = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let live = true;
+    canSaveFiles().then((ok) => live && setCanSave(ok), () => live && setCanSave(false));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -33,14 +45,14 @@ export function ExportMenu({ view, project, layoutCache }: { view: ResolvedView 
     };
   }, [open]);
 
-  const go = async (kind: ExportKind) => {
+  const go = async (exportKind: ExportKind) => {
     setBusy(true);
     setMessage(null);
     try {
       // Export code (including react-dom/server) loads on first use.
       const { runExport } = await import('../app/exports');
-      const file = await runExport(kind, view, project, layoutCache, clean);
-      setMessage(`Downloaded ${file}`);
+      const out = await runExport(exportKind, view, project, layoutCache, clean);
+      setMessage(out.status === 'saved' ? `Saved ${out.file}` : out.status === 'delivered' ? `Sent ${out.file}` : `Downloaded ${out.file}`);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
     } finally {
@@ -56,7 +68,7 @@ export function ExportMenu({ view, project, layoutCache }: { view: ResolvedView 
       {open ? (
         <div className="menu" id={menuId} role="menu" aria-label="Export">
           {ITEMS.map((it) => (
-            <button key={it.kind} type="button" role="menuitem" className="item" disabled={busy || (it.needsView && !view)} onClick={() => go(it.kind)}>
+            <button key={it.kind} type="button" role="menuitem" className="item" disabled={busy || canSave === false || (it.needsView && !view)} onClick={() => go(it.kind)}>
               {it.label}
               <small>{it.needsView && !view ? 'Available when the analysis is current' : it.hint}</small>
             </button>
@@ -65,13 +77,12 @@ export function ExportMenu({ view, project, layoutCache }: { view: ResolvedView 
             <input type="checkbox" checked={clean} onChange={(e) => setClean(e.target.checked)} /> Clean presentation variant (charts)
           </label>
           <hr />
-          <button type="button" role="menuitem" className="item" disabled={busy} onClick={() => go('json')}>
+          <button type="button" role="menuitem" className="item" disabled={busy || canSave === false} onClick={() => go('json')}>
             Project JSON (backup)
             <small>All inputs, IDs, sources, settings and the last map layout</small>
           </button>
-          <p className="menu-note">
-            Projects are saved in this browser’s storage for this site only. A JSON export is your portable backup; import it from the Projects page.
-          </p>
+          {canSave === false ? <p className="menu-note">Saving files is not available in this view (for example a signed-out or public view).</p> : null}
+          <p className="menu-note">{storageNote(kind)} Import a backup from the Projects page.</p>
           {message ? (
             <p className="menu-note" role="status">
               {message}

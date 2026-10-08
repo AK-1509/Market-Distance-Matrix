@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ResolvedView } from '../app/useAnalysis';
 import { buildDistanceScene } from '../charts/distanceScene';
-import { INK, type ProductIdentity } from '../charts/palette';
+import type { ProductIdentity } from '../charts/palette';
 import { buildRadialScene } from '../charts/radialScene';
 import { SceneSvg, type Hit } from '../charts/scene';
 import type { Analysis } from '../domain/analysis';
@@ -114,7 +114,7 @@ export function RadialChart({
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
       >
-        <SceneSvg scene={scene} handlers={{ onActivate, onHover: setHover }} testId="radial-chart" />
+        <SceneSvg scene={scene} handlers={{ onActivate, onHover: setHover }} testId="radial-chart" themed />
       </div>
       <Readout text={readout} />
       <div className="legend" aria-label="Legend">
@@ -122,19 +122,19 @@ export function RadialChart({
           <IdvStar /> IDV ({view.analysis.names[view.analysis.idvId]}) at the centre
         </span>
         <span>
-          <span className="swatch" style={{ background: INK.muted }} /> Competitor — distance from centre is exact
+          <span className="swatch" style={{ background: 'var(--chart-muted)' }} /> Competitor — distance from centre is exact
         </span>
         {showSegments ? (
           <span>
             <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M7 1L13 7L7 13L1 7Z" fill="#fff" stroke={INK.secondary} strokeWidth="2" />
+              <path d="M7 1L13 7L7 13L1 7Z" style={{ fill: 'var(--chart-surface)', stroke: 'var(--chart-ink-2)' }} strokeWidth="2" />
             </svg>
             Modelled segment center
           </span>
         ) : null}
         <span>
           <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">
-            <circle cx="7" cy="7" r="5.5" fill="none" stroke={INK.axis} strokeWidth="1.5" />
+            <circle cx="7" cy="7" r="5.5" fill="none" style={{ stroke: 'var(--chart-axis)' }} strokeWidth="1.5" />
           </svg>
           Rings: modelled distance 0.25–1.00
         </span>
@@ -174,7 +174,7 @@ export function DistanceChart({
       ) : null}
       <div className="chart-wrap" ref={ref}>
         {analysis.competitorIds.length ? (
-          <SceneSvg scene={scene} handlers={{ onActivate, onHover: setHover }} testId="distance-chart" />
+          <SceneSvg scene={scene} handlers={{ onActivate, onHover: setHover }} testId="distance-chart" themed />
         ) : (
           <p className="empty" style={{ margin: 0 }}>
             Add a competitor to see its modelled distance from the IDV.

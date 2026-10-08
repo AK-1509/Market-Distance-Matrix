@@ -17,7 +17,9 @@ You can export a 1920×1080 PNG, SVGs, a printable HTML report, or a portable
 JSON backup. Everything runs locally in the browser: no account, server, API
 key or LLM.
 
-The app lives in [`competitive-landscape/`](competitive-landscape/).
+The app lives in [`competitive-landscape/`](competitive-landscape/). It is also
+published as a Claude Artifact: https://claude.ai/artifact/Ds6nJv5dvHdPe6iSPSP5zE
+(private until shared from its Share menu).
 
 ## Quick start
 
@@ -41,6 +43,7 @@ Open http://127.0.0.1:5173 and choose **Open example** to load the fictional
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build at http://127.0.0.1:4173 |
 | `npm run e2e` | Playwright journey against the production build (needs Chromium: `npx playwright install chromium` on a fresh machine) |
+| `npm run build:artifact` | Build the Claude Artifact version into `dist-artifact/` (`market-landscape.html` plus the layout worker, published side by side) |
 
 ## Using it
 
@@ -100,6 +103,16 @@ cloud save.
 from the Projects page; it always becomes a new project and never overwrites an
 existing one. Imports are validated: unknown schema versions, malformed
 numbers, broken references, script markup and non-http(s) links are rejected.
+
+### In the Claude Artifact
+
+The artifact runs the same code with three runtime capabilities. Signed-in
+viewers' projects are saved in their own private area of the artifact's store
+(`db` + `user`), visible only to them. Exports go through `downloads`, which
+asks the viewer to confirm each file. Without those capabilities (signed out,
+or a view that doesn't grant them) the page falls back to browser storage and
+explains that file export is unavailable. It follows the viewer's light or
+dark theme; exported images stay on white.
 
 ## Limitations
 

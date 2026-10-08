@@ -42,3 +42,26 @@ export function productIdentities(project: Pick<Project, 'products' | 'idvProduc
   if (project.idvProductId) out[project.idvProductId] = { color: INK.primary, key: 0, isIdv: true };
   return out;
 }
+
+/**
+ * On-screen theming: each literal palette colour maps to a CSS variable that
+ * the stylesheet defines for light and dark (dark steps from the same ramps).
+ * Exports render with the literal colours on white.
+ */
+export const SCREEN_THEME: Record<string, string> = {
+  [INK.primary]: 'var(--chart-ink)',
+  [INK.secondary]: 'var(--chart-ink-2)',
+  [INK.muted]: 'var(--chart-muted)',
+  [INK.grid]: 'var(--chart-grid)',
+  [INK.axis]: 'var(--chart-axis)',
+  [INK.surface]: 'var(--chart-surface)',
+  '#f0efec': 'var(--chart-selected)',
+  [OVERFLOW_COLOR]: 'var(--series-overflow)',
+  ...Object.fromEntries(SERIES.map((c, i) => [c, `var(--series-${i + 1})`])),
+};
+
+/** CSS value for a product swatch outside SVG scenes. */
+export function swatchColor(color: string | undefined): string {
+  if (!color) return 'var(--chart-muted)';
+  return SCREEN_THEME[color] ?? color;
+}
