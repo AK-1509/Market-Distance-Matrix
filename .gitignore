@@ -6,6 +6,15 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
+.vite/
+
+# Test output (Vitest / Playwright)
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Environment and local config
 .env
