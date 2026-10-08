@@ -140,3 +140,14 @@ describe('narrative', () => {
     expect(text).toMatch(/Programmers: 3 of 4 competitors .* — More crowded\./);
   });
 });
+
+describe('markup in user text', () => {
+  it('is flagged at entry so drafts stay importable; plain symbols are fine', () => {
+    const project = tinyProject();
+    project.products[1].name = '<img src=x onerror=alert(1)>';
+    project.products[2].description = 'Fast & "simple" < 5 min setup';
+    const v = validateProject(project);
+    expect(v.issues.filter((i) => i.code === 'markup').map((i) => i.productId)).toEqual([project.products[1].id]);
+    expect(v.blocking).toBe(true);
+  });
+});

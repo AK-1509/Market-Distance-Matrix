@@ -3,7 +3,8 @@
 import { z } from 'zod';
 import { APP_NAME, EXPORT_FORMAT, LIMITS, MODEL_VERSION, SCHEMA_VERSION } from './constants';
 import { ID_PATTERN, newId } from './ids';
-import { isHttpUrl } from './validation';
+import { ImportError } from './importError';
+import { isHttpUrl, MARKUP_PATTERN as MARKUP } from './validation';
 import type { LayoutResult, Project } from './types';
 
 const finite = z.number().refine(Number.isFinite, 'must be a finite number');
@@ -108,16 +109,8 @@ export function buildExportEnvelope(project: Project, layoutCache: LayoutResult 
   };
 }
 
-export class ImportError extends Error {
-  readonly details: string[];
-  constructor(message: string, details: string[] = []) {
-    super(message);
-    this.name = 'ImportError';
-    this.details = details;
-  }
-}
+export { ImportError };
 
-const MARKUP = /<\s*\/?\s*[a-z!?][^>]*>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html/i;
 
 function scanStrings(value: unknown, path: string, out: string[]): void {
   if (typeof value === 'string') {

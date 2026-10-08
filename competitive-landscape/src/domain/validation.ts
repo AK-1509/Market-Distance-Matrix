@@ -40,6 +40,26 @@ export interface ValidationResult {
   union: number | null;
 }
 
+/** Tag-like markup or script URLs. Text is always rendered escaped, but it is
+ *  rejected so every saved project can round-trip through JSON import. */
+export const MARKUP_PATTERN = /<\s*\/?\s*[a-z!?][^>]*>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html/i;
+
+export function hasMarkup(text: string | undefined): boolean {
+  return text !== undefined && MARKUP_PATTERN.test(text);
+}
+
+function markupIssues(fields: Record<string, string | undefined>, productId?: string): Issue[] {
+  return Object.entries(fields)
+    .filter(([, v]) => hasMarkup(v))
+    .map(([field]) => ({
+      severity: 'error' as const,
+      code: 'markup',
+      message: `${field[0].toUpperCase()}${field.slice(1)} contains HTML-like markup or a script link; remove the angle-bracket tag.`,
+      productId,
+      field: field === 'reference' ? 'sources' : field,
+    }));
+}
+
 export function isHttpUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -146,6 +166,19 @@ export function productIssues(product: Product, project: Pick<Project, 'tam' | '
   }
 
   issues.push(...sourceIssues(product.sources, pid));
+  issues.push(
+    ...markupIssues(
+      {
+        name: product.name,
+        description: product.description,
+        notes: product.notes,
+        somHorizon: product.somHorizon,
+        price: [product.price.basis, product.price.note, product.price.currency].join(' '),
+        reference: product.sources.map((s) => [s.title, s.note].join(' ')).join(' '),
+      },
+      pid,
+    ),
+  );
   return issues;
 }
 
@@ -190,6 +223,16 @@ export function validateProject(project: Project): ValidationResult {
     segIds.add(s.id);
   }
   issues.push(...sourceIssues(project.sources));
+  issues.push(
+    ...markupIssues({
+      'project name': project.name,
+      'market description': project.marketDescription,
+      'project notes': project.notes,
+      unit: project.marketUnit,
+      'segment name': project.segments.map((x) => x.name).join(' '),
+      reference: project.sources.map((x) => [x.title, x.note].join(' ')).join(' '),
+    }),
+  );
 
   const idv = project.products.find((p) => p.id === project.idvProductId) ?? null;
   if (project.products.length === 0) {

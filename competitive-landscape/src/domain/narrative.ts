@@ -111,7 +111,9 @@ export function buildNarrative(project: Project, analysis: Analysis, diagnostics
     paragraphs.push([
       `This landscape compares ${analysis.productIds.length} product${analysis.productIds.length === 1 ? '' : 's'} — the IDV `,
       { strong: idvName },
-      ` and ${comps.length} competitor${comps.length === 1 ? '' : 's'}${market ? ` — in “${market}”` : ''}, as of ${project.referenceDate || 'an unspecified date'}. `,
+      ` and ${comps.length} competitor${comps.length === 1 ? '' : 's'}${
+        market ? (market.length <= 100 ? ` — in “${market.replace(/[.\s]+$/, '')}”` : ' — in the market described for this project') : ''
+      }, as of ${project.referenceDate || 'an unspecified date'}. `,
       `The total addressable market (TAM) is ${q(analysis.tam)}.`,
       projectCite(),
     ]);

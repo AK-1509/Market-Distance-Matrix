@@ -1,5 +1,4 @@
 import { createDemoProject } from '../domain/fixtures';
-import { asNewProject, parseProjectFile, type ParsedImport } from '../domain/schema';
 import type { LayoutResult, Project } from '../domain/types';
 import { getDb, type SnapshotRecord } from './db';
 
@@ -73,7 +72,9 @@ export interface ImportOutcome {
 
 /** Validate first, then insert as a new project. Never overwrites. */
 export async function importProjectText(text: string): Promise<ImportOutcome> {
-  const parsed: ParsedImport = parseProjectFile(text);
+  // Validation (Zod) loads on demand to keep the main bundle small.
+  const { asNewProject, parseProjectFile } = await import('../domain/schema');
+  const parsed = parseProjectFile(text);
   const names = (await listProjects()).map((p) => p.name);
   const project = asNewProject(parsed, names);
   await addProject(project);
