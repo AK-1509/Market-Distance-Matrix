@@ -21,3 +21,9 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Vite, Vitest and Playwright
+.vite/
+*.tsbuildinfo
+test-results/
+playwright-report/
